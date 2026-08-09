@@ -98,7 +98,7 @@ sing-monitor/
 | v0.2.1 | 修复采集器 gRPC 服务名（见坑 1） |
 | v0.2.2 | 修复 CI 测试（旧测试文件残留） |
 | v0.2.3 | 修复 go:embed 子目录 + 新增版本接口 |
-| v0.2.4 | vite base 顶层 + 模型 json tag + 在线判定修复（**待发布**） |
+| v0.2.4 | vite base 顶层 + 模型 json tag + 在线判定 + 实时排序 + 图表修复 + 表格排序（**待发布**） |
 
 ---
 
@@ -115,9 +115,10 @@ sing-monitor/
 - **根因**：`//go:embed web/*` 只嵌入第一层文件，`assets/` 子目录不进二进制。
 - **修复**：`//go:embed all:web`（递归）。
 
-### 坑 3：前端资源 404（第二重）
+### 坑 3：前端资源 404（第二重：vite base）
 - **现象**：修复坑 2 后仍 404。
 - **根因**：vite 的 `base: './'` 写在了 `build:` 里——**无效配置**（base 是顶层选项），构建产物 HTML 里是 `/assets/...` **绝对路径**，子路径反代（nginx `/control/`）下浏览器请求根路径 `/assets/` → 404。
+- **排查**：`curl https://host/control/` 拿 HTML，看资源引用是 `/assets/` 还是 `./assets/`；再分别 curl 根路径与 /control/ 路径对比状态码。
 - **修复**：`base: './'` 移到顶层；同时前端 API/WebSocket 全部用相对路径（`fetch('api/v1/...')`、`new URL('api/v1/ws/rt', location.href)`）。
 
 ### 坑 4：概览大盘/入站节点/历史统计全空
@@ -141,7 +142,12 @@ sing-monitor/
 - 官方 `nfpm.goreleaser.com/install.sh` 返回 404 → CI 里从 GitHub Release 下载固定版本（v2.47.0）
 - deb 脚本中文注释乱码 → postinstall/preremove 用纯 ASCII 注释
 
-### 坑 8：PowerShell/脚本环境
+### 坑 8：实时监控其他细节
+- **用户排序乱跳**：后端遍历 Go map 推送（顺序随机）→ publish 前 `sort.SliceStable` 按总速率降序 + 名称升序稳定排序。
+- **速率图看不到波动**：①x 轴 `type:'time'` 但数据塞的是 `toLocaleTimeString` 字符串（ECharts time 轴要 epoch ms 时间戳）→ 改用 `Date.now()`；②y 轴大值压平小波动 → `scale:true` + 轴标签/悬浮框单位格式化（B/s→MB/s）+ dataZoom 缩放。
+- **表格排序需求**：用户管理/历史统计/实时监控三张表都支持表头点击排序（可复用组件 `web/src/components/SortableTh.vue`，中文 `localeCompare('zh')`）。
+
+### 坑 9：PowerShell/脚本环境
 - 本机 PowerShell 不支持 `&&`；curl 是 Invoke-WebRequest 别名（用 `curl.exe`）
 - **写脚本时密码会被显示层脱敏成 `***` 破坏命令** → 排查脚本从 `/etc/sing-monitor/config.yaml` 动态读取密码（`grep -A6 '^postgres:' ... | awk`），避免硬编码
 
@@ -188,8 +194,8 @@ curl -s http://127.0.0.1:8090/api/v1/version
 
 ## 6. 遗留事项
 
-- [ ] 生产部署 v0.2.4（用户需执行 sudo 替换 + 重启，替换后验证 /control/ 三处显示 + 实时监控在线状态）
-- [ ] 打 tag v0.2.4（含 vite base / json tag / 在线判定三项修复）
+- [ ] 生产部署 v0.2.4（用户需执行 sudo 替换 + 重启，替换后验证 /control/ 三处显示 + 实时监控在线状态/排序/图表）
+- [ ] 打 tag v0.2.4（含 vite base / json tag / 在线判定 / 实时排序 / 图表 / 表格排序）
 - [ ] config.json 的 7 个外部节点：决定是否「同步母配置」导入
 - [ ] 工作区 `ruyizf_pay.ps1` 有明文商户密钥（已从 git 剔除，建议改环境变量读取）
 - [ ] `singbox-monitor.bin`（旧系统二进制）备份在 Windows 工作区，勿删
