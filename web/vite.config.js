@@ -3,10 +3,10 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
+  // 相对路径：支持 nginx 子路径反代（必须放顶层，build.base 无效）
+  base: './',
   build: {
     outDir: 'dist',
-    // 相对路径，支持 nginx 子路径 /control/ 部署
-    base: './',
   },
   server: {
     port: 5173,
