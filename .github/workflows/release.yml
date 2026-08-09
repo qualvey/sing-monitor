@@ -1,6 +1,7 @@
 name: release
 
-# 打 tag（v*）触发：git tag v1.0.0 && git push origin v1.0.0
+# CD：打 tag（v*）触发，构建二进制 + deb 包并发布
+# 用法：git tag v1.0.0 && git push origin v1.0.0
 on:
   push:
     tags:
@@ -8,7 +9,6 @@ on:
 
 permissions:
   contents: write      # 创建 GitHub Release
-  packages: write      # 推送 GHCR 镜像
 
 jobs:
   build:
@@ -34,7 +34,7 @@ jobs:
         with:
           go-version-file: server/go.mod
 
-      - name: Build
+      - name: Build binary
         env:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
@@ -43,16 +43,33 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p dist
           cd server
+          # 固定文件名（nfpm 依赖），版本号注入 ldflags
           go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" \
-            -o "../dist/sing-monitor-server_${VERSION}_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.ext }}" .
+            -o "../dist/sing-monitor-server" .
           cd ..
-          # 附带配置示例
+
+      - name: Package deb (linux)
+        if: matrix.os == 'linux'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          curl -sSfL https://nfpm.goreleaser.com/install.sh | sh
+          sed "s/__VERSION__/${VERSION}/g; s/__ARCH__/${{ matrix.arch }}/g" nfpm.yaml > nfpm.gen.yaml
+          ./bin/nfpm package -p deb -f nfpm.gen.yaml -t "dist/sing-monitor_${VERSION}_${{ matrix.arch }}.deb"
+          # 配置示例一并发布
           cp server/config.example.json "dist/config.example.json"
+          # 二进制改回带版本名
+          mv dist/sing-monitor-server "dist/sing-monitor-server_${VERSION}_${{ matrix.os }}_${{ matrix.arch }}"
+
+      - name: Rename binary (windows)
+        if: matrix.os == 'windows'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mv dist/sing-monitor-server "dist/sing-monitor-server_${VERSION}_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.ext }}"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sing-monitor-server-${{ matrix.os }}-${{ matrix.arch }}
+          name: sing-monitor-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/*
           if-no-files-found: error
 
@@ -72,42 +89,3 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
-
-  docker:
-    name: Docker image (GHCR)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}

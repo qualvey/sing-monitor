@@ -1,0 +1,28 @@
+# nfpm 打包配置：生成含 systemd 服务的 deb 包
+# 注意：nfpm 不解析环境变量，CI 中用 sed 将 __VERSION__/__ARCH__ 替换为实际值：
+#   sed "s/__VERSION__/${VERSION}/g; s/__ARCH__/${ARCH}/g" nfpm.yaml > nfpm.gen.yaml
+#   nfpm package -p deb -f nfpm.gen.yaml -t dist/
+name: sing-monitor
+arch: __ARCH__
+platform: linux
+version: __VERSION__
+section: net
+priority: optional
+maintainer: qualvey <qualvey@users.noreply.github.com>
+description: sing-box traffic monitor server (per-user cycle aggregation)
+homepage: https://github.com/qualvey/sing-monitor
+contents:
+  # CI 构建时输出固定文件名 dist/sing-monitor-server
+  - src: dist/sing-monitor-server
+    dst: /usr/bin/sing-monitor-server
+    file_info:
+      mode: 0755
+  - src: deploy/sing-monitor.service
+    dst: /lib/systemd/system/sing-monitor.service
+  # 配置文件：升级时不覆盖用户修改
+  - src: server/config.example.json
+    dst: /etc/sing-monitor/config.json
+    type: config|noreplace
+scripts:
+  postinstall: deploy/postinstall.sh
+  preremove: deploy/preremove.sh

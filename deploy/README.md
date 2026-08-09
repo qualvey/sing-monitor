@@ -1,57 +1,39 @@
-# sing-monitor systemd 服务（二进制部署，推荐）
+# sing-monitor deb 部署（Debian/Ubuntu，推荐）
 
-Go 静态二进制 + systemd 是单服务部署的标准姿势，比 Docker 少一层抽象、启动更快、资源占用更小。
+## 安装
 
-## 部署步骤
-
-### 1. 下载二进制
-
-从 GitHub Release 下载对应平台产物：
+从 GitHub Release 下载 deb 包，一行安装：
 
 ```bash
-# 服务器是 linux/amd64 或 linux/arm64
-curl -L -o sing-monitor-server \
-  https://github.com/qualvey/sing-monitor/releases/download/v0.1.0/sing-monitor-server_0.1.0_linux_amd64
-chmod +x sing-monitor-server
+sudo apt install ./sing-monitor_1.0.0_amd64.deb
 ```
 
-### 2. 安装到系统目录
+安装完成服务已自动注册并启动。
+
+- 二进制：`/usr/bin/sing-monitor-server`
+- 配置：`/etc/sing-monitor/config.json`（首次安装后编辑，升级不覆盖）
+- 数据：`/var/lib/sing-monitor/sing-monitor.db`
+
+## 管理
 
 ```bash
-sudo mkdir -p /opt/sing-monitor
-sudo mv sing-monitor-server /opt/sing-monitor/
-sudo cp server/config.example.json /opt/sing-monitor/config.json
-# 编辑 config.json：改 sing_box_grpc_addr、collect_interval_seconds 等
-```
-
-### 3. 创建 systemd 服务
-
-```bash
-sudo cp deploy/sing-monitor.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now sing-monitor
-```
-
-### 4. 查看状态与日志
-
-```bash
-systemctl status sing-monitor
-journalctl -u sing-monitor -f
+systemctl status sing-monitor        # 状态
+sudo systemctl restart sing-monitor  # 重启
+sudo systemctl stop sing-monitor     # 停止
+journalctl -u sing-monitor -f        # 日志
 ```
 
 ## 升级
 
-替换二进制 + 重启即可：
-
 ```bash
-sudo systemctl stop sing-monitor
-sudo curl -L -o /opt/sing-monitor/sing-monitor-server <新版本 URL>
-sudo systemctl start sing-monitor
+sudo apt install ./sing-monitor_1.1.0_amd64.deb   # 覆盖安装即升级
 ```
+
+升级时：服务自动重启，配置保留（`/etc/sing-monitor/config.json` 不会被覆盖），数据保留。
 
 ## 卸载
 
 ```bash
-sudo systemctl disable --now sing-monitor
-sudo rm /etc/systemd/system/sing-monitor.service /opt/sing-monitor -rf
+sudo apt remove sing-monitor    # 保留 /var/lib/sing-monitor 数据
+sudo apt purge sing-monitor     # 连数据一起删除
 ```

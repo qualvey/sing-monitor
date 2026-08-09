@@ -1,6 +1,6 @@
 name: ci
 
-# CI：任何分支 push 触发，跑测试与构建验证，不发布
+# CI：任何分支 push / PR 触发，跑测试与构建验证，不发布
 on:
   push:
   pull_request:
@@ -32,21 +32,3 @@ jobs:
         run: |
           cd server
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o /dev/null .
-
-  docker:
-    name: docker build check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image (no push)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64
-          push: false
-          tags: sing-monitor:ci-check

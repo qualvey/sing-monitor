@@ -30,3 +30,8 @@ go.work
 
 # Config (you might want to ignore local configs but keep a sample)
 server/config.json
+
+# Build output
+dist/
+nfpm.gen.yaml
+nfpm-local.exe

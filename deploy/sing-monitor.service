@@ -5,15 +5,15 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/sing-monitor
-ExecStart=/opt/sing-monitor/sing-monitor-server
+WorkingDirectory=/var/lib/sing-monitor
+ExecStart=/usr/bin/sing-monitor-server
 Restart=on-failure
 RestartSec=5
 # 安全加固
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/sing-monitor
+ReadWritePaths=/var/lib/sing-monitor
 
 [Install]
 WantedBy=multi-user.target

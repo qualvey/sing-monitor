@@ -106,7 +106,7 @@ sing-monitor/
 
 ## CI/CD
 
-**CI（push 触发）**：任意分支 push / PR 自动跑 `go vet` + `go test` + 编译验证 + Docker 构建检查，保证代码质量。
+**CI（push 触发）**：任意分支 push / PR 自动跑 `go vet` + `go test` + 编译验证，保证代码质量。
 
 **CD（tag 触发）**：打 tag 自动构建并发布：
 
@@ -115,15 +115,32 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-自动产出：
-- GitHub Release：`linux/amd64`、`linux/arm64`、`windows/amd64` 三平台二进制（版本号取自 tag，启动日志会打印）
-- Docker 镜像：`ghcr.io/qualvey/sing-monitor:<version>`（含 `latest`，支持 linux/amd64 + arm64）
+自动产出（GitHub Release）：
+- 二进制：`linux/amd64`、`linux/arm64`、`windows/amd64`
+- **deb 包**（含 systemd 服务）：`sing-monitor_<version>_amd64.deb` / `_arm64.deb`
 
-运行 Docker 镜像：
+## 部署（Debian/Ubuntu，推荐）
+
+下载 Release 中的 deb 包，一行安装，服务自动注册并启动：
+
 ```bash
-docker run -d --name sing-monitor -p 8080:8080 \
-  -v /path/to/config.json:/app/config.json \
-  ghcr.io/qualvey/sing-monitor:latest
+sudo apt install ./sing-monitor_1.0.0_amd64.deb
+```
+
+- 二进制 → `/usr/bin/sing-monitor-server`
+- 配置 → `/etc/sing-monitor/config.json`（升级不覆盖，首次安装后自行编辑）
+- 数据 → `/var/lib/sing-monitor/sing-monitor.db`
+
+管理服务：
+```bash
+systemctl status sing-monitor
+sudo systemctl restart sing-monitor
+journalctl -u sing-monitor -f
+```
+
+卸载：
+```bash
+sudo apt remove sing-monitor   # 保留数据；purge 连数据一起删
 ```
 
 ## 协议
