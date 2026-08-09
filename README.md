@@ -104,9 +104,11 @@ sing-monitor/
 └── .gitignore              # git 忽略配置
 ```
 
-## 发布（CI/CD）
+## CI/CD
 
-打 tag 自动触发 GitHub Actions 构建并发布：
+**CI（push 触发）**：任意分支 push / PR 自动跑 `go vet` + `go test` + 编译验证 + Docker 构建检查，保证代码质量。
+
+**CD（tag 触发）**：打 tag 自动构建并发布：
 
 ```bash
 git tag v1.0.0
