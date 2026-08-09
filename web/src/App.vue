@@ -28,7 +28,7 @@
         <div class="flex items-center justify-between h-16">
           <div class="flex items-center space-x-3">
             <h1 class="text-lg font-bold">📊 Sing-Box Dashboard</h1>
-            <span class="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full">v0.2.0</span>
+            <span v-if="ver" class="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full">v{{ ver }}</span>
           </div>
           <nav class="hidden md:flex items-center space-x-1 bg-slate-900/60 p-1 rounded-xl border border-slate-800">
             <button v-for="t in tabs" :key="t.id" @click="tab = t.id"
@@ -86,6 +86,14 @@ const tab = ref('overview')
 const users = ref([])
 const inbounds = ref([])
 const stats = ref([])
+const ver = ref('')
+
+async function fetchVersion() {
+  try {
+    const r = await api.version()
+    ver.value = r.version || ''
+  } catch {}
+}
 
 async function doLogin() {
   loading.value = true
@@ -94,6 +102,7 @@ async function doLogin() {
     const r = await api.login(pwd.value)
     setToken(r.token)
     authed.value = true
+    await fetchVersion()
     await refresh()
   } catch (e) {
     error.value = e.message
@@ -146,6 +155,7 @@ function onAuthFailed() {
 
 onMounted(() => {
   window.addEventListener('auth-failed', onAuthFailed)
+  fetchVersion()
   if (authed.value) refresh()
 })
 onBeforeUnmount(() => window.removeEventListener('auth-failed', onAuthFailed))

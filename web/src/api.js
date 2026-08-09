@@ -31,6 +31,7 @@ async function req(path, options = {}) {
 }
 
 export const api = {
+  version: () => req('/version'),
   login: (password) => req('/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   stats: () => req('/stats'),
   statsUsers: () => req('/stats/users'),

@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//go:embed web/*
+//go:embed all:web
 var webFS embed.FS
 
 // serveEmbedded 托管 go:embed 内嵌前端；未命中时回退 index.html（SPA）

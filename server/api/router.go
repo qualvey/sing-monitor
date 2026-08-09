@@ -12,6 +12,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Version 由构建时通过 ldflags 注入（main.version）
+var Version = "dev"
+
+func GetVersion(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"version": Version})
+}
+
 // Ctx 供 handler 访问全局依赖
 type Ctx struct {
 	Cfg *config.Config
@@ -40,6 +47,7 @@ func SetupRouter(cfg *config.Config, rt *realtime.Broadcaster) *gin.Engine {
 
 	api := r.Group("/api/v1")
 	{
+		api.GET("/version", GetVersion)
 		api.POST("/auth/login", handleLogin)
 
 		authed := api.Group("")

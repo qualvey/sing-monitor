@@ -17,7 +17,15 @@ var version = "dev"
 
 func main() {
 	configPath := flag.String("config", "/etc/sing-monitor/config.yaml", "config file path")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("sing-monitor %s\n", version)
+		return
+	}
+
+	api.Version = version
 
 	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
