@@ -98,7 +98,7 @@ sing-monitor/
 | v0.2.1 | 修复采集器 gRPC 服务名（见坑 1） |
 | v0.2.2 | 修复 CI 测试（旧测试文件残留） |
 | v0.2.3 | 修复 go:embed 子目录 + 新增版本接口 |
-| v0.2.4 | vite base 顶层 + 模型 json tag + 在线判定 + 实时排序 + 图表修复 + 表格排序（**待发布**） |
+| v0.2.4 | vite base 顶层 + 模型 json tag + 在线判定 + 实时排序 + 图表修复 + 表格排序 + 动态采集灵敏度（**待发布**） |
 
 ---
 
@@ -146,6 +146,7 @@ sing-monitor/
 - **用户排序乱跳**：后端遍历 Go map 推送（顺序随机）→ publish 前 `sort.SliceStable` 按总速率降序 + 名称升序稳定排序。
 - **速率图看不到波动**：①x 轴 `type:'time'` 但数据塞的是 `toLocaleTimeString` 字符串（ECharts time 轴要 epoch ms 时间戳）→ 改用 `Date.now()`；②y 轴大值压平小波动 → `scale:true` + 轴标签/悬浮框单位格式化（B/s→MB/s）+ dataZoom 缩放。
 - **表格排序需求**：用户管理/历史统计/实时监控三张表都支持表头点击排序（可复用组件 `web/src/components/SortableTh.vue`，中文 `localeCompare('zh')`）。
+- **动态采集灵敏度（实时监控）**：WS 订阅数 > 0 时采集器自动切高频（前端可选 1s/2s/5s/10s，通过 WS 控制消息 `{"action":"set_interval","interval_ms":N}` 调整）；断开/页面关闭自动恢复默认 10s。实现：collector ticker 运行时 `Reset` + realtime 订阅计数 + `pollMs` 原子变量。**注意：高频模式写库频率提升（数据量约 5 倍），仅实时页打开时生效**。
 
 ### 坑 9：PowerShell/脚本环境
 - 本机 PowerShell 不支持 `&&`；curl 是 Invoke-WebRequest 别名（用 `curl.exe`）
@@ -194,8 +195,9 @@ curl -s http://127.0.0.1:8090/api/v1/version
 
 ## 6. 遗留事项
 
-- [ ] 生产部署 v0.2.4（用户需执行 sudo 替换 + 重启，替换后验证 /control/ 三处显示 + 实时监控在线状态/排序/图表）
-- [ ] 打 tag v0.2.4（含 vite base / json tag / 在线判定 / 实时排序 / 图表 / 表格排序）
+- [ ] 生产部署 v0.2.4（用户需执行 sudo 替换 + 重启；替换后验证 /control/ 三处显示 + 实时监控在线/排序/图表/灵敏度）
+- [ ] 打 tag v0.2.4（含全部修复与功能）
+- [ ] **排查教训：调试用测试实例必须及时杀掉**——测试实例与生产采集器共享 sing-box 8080 且都 reset=true，会互相抢计数器导致生产数据中断（本次已发生）
 - [ ] config.json 的 7 个外部节点：决定是否「同步母配置」导入
 - [ ] 工作区 `ruyizf_pay.ps1` 有明文商户密钥（已从 git 剔除，建议改环境变量读取）
 - [ ] `singbox-monitor.bin`（旧系统二进制）备份在 Windows 工作区，勿删
