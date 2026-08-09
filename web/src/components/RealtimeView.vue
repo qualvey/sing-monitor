@@ -72,8 +72,11 @@ const upSeries = []
 const downSeries = []
 
 function connect() {
-  const base = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/v1/ws/rt?token=${getToken()}`
-  ws = new WebSocket(base)
+  // 相对路径 WebSocket：支持 nginx 子路径反代
+  const url = new URL('api/v1/ws/rt', window.location.href)
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  url.search = getToken() ? `?token=${getToken()}` : ''
+  ws = new WebSocket(url.href)
   ws.onopen = () => { connected.value = true }
   ws.onmessage = (e) => {
     try {

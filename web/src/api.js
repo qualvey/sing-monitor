@@ -18,7 +18,8 @@ async function req(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const resp = await fetch(`/api/v1${path}`, { ...options, headers })
+  // 相对路径：支持 nginx 子路径反代（/control/ → 后端）
+  const resp = await fetch(`api/v1${path}`, { ...options, headers })
   if (resp.status === 401) {
     clearToken()
     window.dispatchEvent(new Event('auth-failed'))
