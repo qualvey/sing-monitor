@@ -4,7 +4,7 @@ import (
 	"log"
 	"sing-monitor-server/models"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -22,4 +22,10 @@ func InitDB(dbPath string) {
 	if err != nil {
 		log.Fatal("failed to auto migrate database")
 	}
+
+	// 存量用户回填周期字段：CycleStart 取 CreatedAt，CycleDays 用默认值
+	DB.Model(&models.User{}).Where("cycle_start IS NULL").Updates(map[string]interface{}{
+		"cycle_start": gorm.Expr("created_at"),
+	})
+	DB.Model(&models.User{}).Where("cycle_days IS NULL OR cycle_days = 0").Update("cycle_days", models.DefaultCycleDays)
 }

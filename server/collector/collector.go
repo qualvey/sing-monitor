@@ -3,17 +3,17 @@ package collector
 import (
 	"context"
 	"log"
-	"strings"
-	"time"
 	"sing-monitor-server/db"
 	"sing-monitor-server/models"
+	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/experimental/v2rayapi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func StartCollector(grpcAddr string, interval time.Duration) {
+func StartCollector(grpcAddr string, interval time.Duration, defaultCycleDays int) {
 	conn, err := grpc.Dial(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect to sing-box grpc: %v", err)
@@ -27,13 +27,13 @@ func StartCollector(grpcAddr string, interval time.Duration) {
 		for {
 			select {
 			case <-ticker.C:
-				collectStats(client)
+				collectStats(client, defaultCycleDays)
 			}
 		}
 	}()
 }
 
-func collectStats(client v2rayapi.StatsServiceClient) {
+func collectStats(client v2rayapi.StatsServiceClient, defaultCycleDays int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -55,8 +55,8 @@ func collectStats(client v2rayapi.StatsServiceClient) {
 	// Collect User Traffic
 	// Based on sing-box stats pattern, we query all patterns
 	queryResp, err := client.QueryStats(ctx, &v2rayapi.QueryStatsRequest{
-		Pattern: "", // Empty pattern gets all or use specific pattern if needed
-		Reset_:   true, // Assuming sing-box reset is bool
+		Pattern: "",   // Empty pattern gets all or use specific pattern if needed
+		Reset_:  true, // Assuming sing-box reset is bool
 	})
 	if err != nil {
 		log.Printf("Error querying user stats: %v", err)
@@ -88,9 +88,14 @@ func collectStats(client v2rayapi.StatsServiceClient) {
 	}
 
 	for tag, traffic := range userTraffic {
-		// Ensure user exists
+		// Ensure user exists；新用户初始化周期：起始时间=创建时间，天数=默认值
 		var user models.User
-		if err := db.DB.Where("tag = ?", tag).FirstOrCreate(&user, models.User{Tag: tag, CreatedAt: now}).Error; err != nil {
+		if err := db.DB.Where("tag = ?", tag).FirstOrCreate(&user, models.User{
+			Tag:        tag,
+			CreatedAt:  now,
+			CycleStart: now,
+			CycleDays:  defaultCycleDays,
+		}).Error; err != nil {
 			log.Printf("Error ensuring user %s: %v", tag, err)
 			continue
 		}

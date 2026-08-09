@@ -38,13 +38,15 @@ cp config.example.json config.json
   "api_server_port": 8080,
   "sing_box_grpc_addr": "127.0.0.1:10000",
   "collect_interval_seconds": 300,
-  "db_path": "sing-monitor.db"
+  "db_path": "sing-monitor.db",
+  "default_cycle_days": 30
 }
 ```
 - `api_server_port`：本服务对前端暴露的 HTTP API 端口
 - `sing_box_grpc_addr`：你的 sing-box gRPC 监听地址
 - `collect_interval_seconds`：定时拉取数据的间隔时间（单位：秒）
 - `db_path`：SQLite 数据库文件的存储路径
+- `default_cycle_days`：新用户默认流量周期长度（天）；存量用户自动回填，也可通过 API 单独设置
 
 ### 3. 运行服务
 
@@ -60,9 +62,24 @@ go run .
 
 监控系统默认监听指定的 `api_server_port`，所有接口返回均为 JSON 格式，且默认允许跨域 (CORS) 请求。
 
-### 获取所有用户流量汇总
+### 获取所有用户流量汇总（概览大盘）
 **`GET /api/users`**
-返回通过解析 gRPC 流量 Tag 获取到的用户列表信息。
+返回用户列表，每个用户附带**当前周期窗口**（`cycle_start` / `cycle_end`）以及**该窗口内的流量**（`period_up_bytes` / `period_down_bytes` / `period_total_bytes`）。
+
+每个用户独立计费周期：`cycle_start` 为起始锚点，`cycle_days` 为周期天数，窗口自动滚动（第 N 个周期 = 锚点 + N×周期）。
+
+### 设置用户周期
+**`PUT /api/users/:id/cycle`**
+
+请求体：
+```json
+{
+  "cycle_days": 30,
+  "cycle_start": "2026-08-01T00:00:00+08:00"
+}
+```
+- `cycle_days`：必填，周期天数（>0）
+- `cycle_start`：可选，周期起始锚点；不传则保持当前锚点不动
 
 ### 获取流量趋势记录
 **`GET /api/traffic/trend`**

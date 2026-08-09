@@ -2,5 +2,6 @@
   "api_server_port": 8080,
   "sing_box_grpc_addr": "127.0.0.1:10000",
   "collect_interval_seconds": 300,
-  "db_path": "sing-monitor.db"
+  "db_path": "sing-monitor.db",
+  "default_cycle_days": 30
 }

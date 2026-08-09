@@ -3,6 +3,8 @@ package config
 import (
 	"encoding/json"
 	"os"
+
+	"sing-monitor-server/models"
 )
 
 type Config struct {
@@ -10,6 +12,7 @@ type Config struct {
 	SingBoxGrpcAddr        string `json:"sing_box_grpc_addr"`
 	CollectIntervalSeconds int    `json:"collect_interval_seconds"`
 	DBPath                 string `json:"db_path"`
+	DefaultCycleDays       int    `json:"default_cycle_days"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -19,6 +22,7 @@ func LoadConfig(path string) (*Config, error) {
 		SingBoxGrpcAddr:        "127.0.0.1:10000",
 		CollectIntervalSeconds: 300,
 		DBPath:                 "sing-monitor.db",
+		DefaultCycleDays:       models.DefaultCycleDays,
 	}
 
 	file, err := os.Open(path)

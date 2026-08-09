@@ -21,7 +21,7 @@ func main() {
 	db.InitDB(cfg.DBPath)
 
 	// Start Collector
-	go collector.StartCollector(cfg.SingBoxGrpcAddr, time.Duration(cfg.CollectIntervalSeconds)*time.Second)
+	go collector.StartCollector(cfg.SingBoxGrpcAddr, time.Duration(cfg.CollectIntervalSeconds)*time.Second, cfg.DefaultCycleDays)
 
 	// Start Gin Server
 	r := api.SetupRouter()
