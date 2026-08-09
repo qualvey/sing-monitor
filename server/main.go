@@ -11,11 +11,16 @@ import (
 	"sing-monitor-server/db"
 )
 
+// 由构建时注入：go build -ldflags "-X main.version=..."
+var version = "dev"
+
 func main() {
 	cfg, err := config.LoadConfig("config.json")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+
+	log.Printf("sing-monitor-server %s", version)
 
 	// Initialize Database
 	db.InitDB(cfg.DBPath)

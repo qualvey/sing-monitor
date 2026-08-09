@@ -1,0 +1,5 @@
+.git
+.github
+server/*.db
+server/config.json
+**/*.md

@@ -104,5 +104,25 @@ sing-monitor/
 └── .gitignore              # git 忽略配置
 ```
 
+## 发布（CI/CD）
+
+打 tag 自动触发 GitHub Actions 构建并发布：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+自动产出：
+- GitHub Release：`linux/amd64`、`linux/arm64`、`windows/amd64` 三平台二进制（版本号取自 tag，启动日志会打印）
+- Docker 镜像：`ghcr.io/qualvey/sing-monitor:<version>`（含 `latest`，支持 linux/amd64 + arm64）
+
+运行 Docker 镜像：
+```bash
+docker run -d --name sing-monitor -p 8080:8080 \
+  -v /path/to/config.json:/app/config.json \
+  ghcr.io/qualvey/sing-monitor:latest
+```
+
 ## 协议
 本项目作为独立开发者的个人工程，供学习与自用监控参考。
