@@ -114,15 +114,21 @@ func (b *Broadcaster) publish() {
 	now := time.Now()
 	snap := Snapshot{}
 	for name, st := range b.states {
+		online := now.Sub(st.lastSeen) < b.onlineThresh
 		u := UserRt{
-			Name:      name,
-			Uplink:    st.rateUp,
-			Downlink:  st.rateDown,
-			Online:    now.Sub(st.lastSeen) < b.onlineThresh,
+			Name:     name,
+			Uplink:   st.rateUp,
+			Downlink: st.rateDown,
+			Online:   online,
+		}
+		// 离线用户速率归零，不参与总速率汇总
+		if !online {
+			u.Uplink = 0
+			u.Downlink = 0
 		}
 		snap.Users = append(snap.Users, u)
-		snap.Global.Uplink += st.rateUp
-		snap.Global.Downlink += st.rateDown
+		snap.Global.Uplink += u.Uplink
+		snap.Global.Downlink += u.Downlink
 	}
 	// 稳定排序：按总速率降序（活跃在前），同速率按名称升序，避免每次推送顺序跳动
 	sort.SliceStable(snap.Users, func(i, j int) bool {

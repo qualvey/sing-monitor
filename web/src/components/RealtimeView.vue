@@ -3,7 +3,14 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- 实时速率图表 -->
       <div class="lg:col-span-2 bg-[#131b2e] border border-slate-800 rounded-2xl p-4">
-        <h3 class="text-base font-bold mb-2">⚡ 实时速率 (bytes/s)</h3>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-base font-bold">⚡ 实时速率 (bytes/s) — {{ chartTargetName }}</h3>
+          <select v-model="chartTarget" @change="chartSeries = []"
+            class="px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 max-w-[180px]">
+            <option value="all">全部用户（合计）</option>
+            <option v-for="u in users" :key="u.name" :value="u.name">{{ u.name }}</option>
+          </select>
+        </div>
         <div ref="chartEl" class="h-64"></div>
       </div>
       <div class="bg-[#131b2e] border border-slate-800 rounded-2xl p-4 space-y-3">
@@ -48,7 +55,8 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800/60">
-          <tr v-for="u in sortedUsers" :key="u.name" class="hover:bg-slate-800/40">
+          <tr v-for="u in sortedUsers" :key="u.name" @click="chartTarget = u.name; chartSeries.length = 0"
+            :class="['hover:bg-slate-800/40 cursor-pointer transition-colors', chartTarget === u.name ? 'bg-indigo-500/5' : '']">
             <td class="py-3 px-4 font-semibold">{{ u.name }}</td>
             <td class="py-3 px-4 font-mono text-indigo-400">{{ fmtBytes(u.uplink) }}/s</td>
             <td class="py-3 px-4 font-mono text-cyan-400">{{ fmtBytes(u.downlink) }}/s</td>
@@ -78,6 +86,20 @@ const globalUp = ref(0)
 const globalDown = ref(0)
 const users = ref([])
 const intervalMs = ref(2000)
+const chartTarget = ref('all')
+const chartSeries = [] // [时间, up, down] 三元组
+
+const chartTargetName = computed(() =>
+  chartTarget.value === 'all' ? '全部用户' : chartTarget.value)
+
+// 按当前图表目标取速率
+function targetRates() {
+  if (chartTarget.value === 'all') {
+    return [globalUp.value, globalDown.value]
+  }
+  const u = users.value.find(x => x.name === chartTarget.value)
+  return u ? [u.uplink, u.downlink] : [0, 0]
+}
 
 function sendInterval() {
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -113,8 +135,6 @@ const sortedUsers = computed(() => {
 
 let ws = null
 let chart = null
-const upSeries = []
-const downSeries = []
 
 function connect() {
   // 相对路径 WebSocket：支持 nginx 子路径反代
@@ -129,7 +149,7 @@ function connect() {
       globalUp.value = d.global?.uplink || 0
       globalDown.value = d.global?.downlink || 0
       users.value = d.users || []
-      pushChart(globalUp.value, globalDown.value)
+      pushChart()
     } catch {}
   }
   ws.onclose = () => {
@@ -139,17 +159,17 @@ function connect() {
   ws.onerror = () => ws && ws.close()
 }
 
-function pushChart(up, down) {
+function pushChart() {
+  const [up, down] = targetRates()
   // x 轴必须用时间戳（epoch ms），time 轴才能正确渲染
   const t = Date.now()
-  upSeries.push([t, up])
-  downSeries.push([t, down])
-  if (upSeries.length > 60) { upSeries.shift(); downSeries.shift() }
+  chartSeries.push([t, up, down])
+  if (chartSeries.length > 60) { chartSeries.shift() }
   if (chart) {
     chart.setOption({
       series: [
-        { name: '上行', data: upSeries },
-        { name: '下行', data: downSeries },
+        { name: '上行', data: chartSeries.map(p => [p[0], p[1]]) },
+        { name: '下行', data: chartSeries.map(p => [p[0], p[2]]) },
       ],
     })
   }
