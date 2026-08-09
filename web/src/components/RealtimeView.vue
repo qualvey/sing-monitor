@@ -7,6 +7,17 @@
         <div ref="chartEl" class="h-64"></div>
       </div>
       <div class="bg-[#131b2e] border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="text-xs text-slate-400 uppercase">采集灵敏度</div>
+          <select v-model="intervalMs" @change="sendInterval"
+            class="px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500">
+            <option :value="1000">1 秒（最快）</option>
+            <option :value="2000">2 秒</option>
+            <option :value="5000">5 秒</option>
+            <option :value="10000">10 秒</option>
+          </select>
+        </div>
+        <div class="text-[11px] text-slate-500">实时监控页打开时自动切高频采集，关闭页面自动恢复默认</div>
         <div>
           <div class="text-xs text-slate-400 uppercase">上行速率</div>
           <div class="text-2xl font-bold text-indigo-300">{{ fmtBytes(globalUp) }}/s</div>
@@ -66,6 +77,13 @@ const connected = ref(false)
 const globalUp = ref(0)
 const globalDown = ref(0)
 const users = ref([])
+const intervalMs = ref(2000)
+
+function sendInterval() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'set_interval', interval_ms: intervalMs.value }))
+  }
+}
 
 // 表头排序（默认速率降序）
 const sortKey = ref('downlink')
@@ -104,7 +122,7 @@ function connect() {
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
   url.search = getToken() ? `?token=${getToken()}` : ''
   ws = new WebSocket(url.href)
-  ws.onopen = () => { connected.value = true }
+  ws.onopen = () => { connected.value = true; sendInterval() }
   ws.onmessage = (e) => {
     try {
       const d = JSON.parse(e.data)

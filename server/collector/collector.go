@@ -36,6 +36,16 @@ func StartCollector(cfg *config.Config, rt *realtime.Broadcaster) {
 		select {
 		case <-ticker.C:
 			collect(client, cfg, rt)
+			// 动态间隔：有实时监控订阅者时切换到前端指定/默认高频，否则回默认
+			target := interval
+			if fast := rt.EffectivePollInterval(); fast > 0 {
+				target = fast
+			}
+			if target != interval {
+				ticker.Reset(target)
+				interval = target
+				log.Printf("[Collector] poll interval -> %s", interval)
+			}
 		}
 	}
 }

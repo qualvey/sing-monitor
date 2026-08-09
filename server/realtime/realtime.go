@@ -3,6 +3,7 @@ package realtime
 import (
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -39,6 +40,8 @@ type Broadcaster struct {
 	mu       sync.Mutex
 	states   map[string]*targetState
 	subs     map[chan Snapshot]struct{}
+	subCount atomic.Int32
+	pollMs   atomic.Int64 // 动态采集间隔（ms），0=用配置默认；由前端实时监控页控制
 	stop     chan struct{}
 	done     chan struct{}
 }
@@ -149,6 +152,7 @@ func (b *Broadcaster) Subscribe() chan Snapshot {
 	b.mu.Lock()
 	b.subs[ch] = struct{}{}
 	b.mu.Unlock()
+	b.subCount.Add(1)
 	return ch
 }
 
@@ -156,4 +160,32 @@ func (b *Broadcaster) Unsubscribe(ch chan Snapshot) {
 	b.mu.Lock()
 	delete(b.subs, ch)
 	b.mu.Unlock()
+	b.subCount.Add(-1)
+}
+
+// SubscriberCount 当前 WebSocket 订阅者数（采集器据此切换高频模式）
+func (b *Broadcaster) SubscriberCount() int {
+	return int(b.subCount.Load())
+}
+
+// SetPollInterval 设置采集间隔（ms）；由前端实时监控页控制
+func (b *Broadcaster) SetPollInterval(ms int) {
+	if ms < 1000 {
+		ms = 1000
+	}
+	if ms > 30000 {
+		ms = 30000
+	}
+	b.pollMs.Store(int64(ms))
+}
+
+// EffectivePollInterval 返回当前应使用的采集间隔；无订阅者时返回 0（用默认）
+func (b *Broadcaster) EffectivePollInterval() time.Duration {
+	if b.SubscriberCount() <= 0 {
+		return 0
+	}
+	if ms := b.pollMs.Load(); ms > 0 {
+		return time.Duration(ms) * time.Millisecond
+	}
+	return 2 * time.Second // 实时模式默认 2s
 }

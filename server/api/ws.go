@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -31,13 +32,21 @@ func handleWS(c *gin.Context) {
 	ch := app.RT.Subscribe()
 	defer app.RT.Unsubscribe(ch)
 
-	// 读协程：检测断开
+	// 读协程：检测断开 + 处理前端控制消息（调整采集灵敏度）
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
 				return
+			}
+			var ctl struct {
+				Action     string `json:"action"`
+				IntervalMS int    `json:"interval_ms"`
+			}
+			if json.Unmarshal(msg, &ctl) == nil && ctl.Action == "set_interval" {
+				app.RT.SetPollInterval(ctl.IntervalMS)
 			}
 		}
 	}()
