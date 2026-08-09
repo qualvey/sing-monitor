@@ -35,3 +35,9 @@ server/config.json
 dist/
 nfpm.gen.yaml
 nfpm-local.exe
+
+# ?????????
+web/node_modules/
+web/dist/
+server/api/web/assets/
+dist-test/

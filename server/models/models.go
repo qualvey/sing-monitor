@@ -4,18 +4,85 @@ import (
 	"time"
 )
 
-// DefaultCycleDays 是用户未单独配置周期天数时的默认周期长度（天）
+// DefaultCycleDays 用户未单独配置周期天数时的默认值
 const DefaultCycleDays = 30
 
+// User 对齐现有数据库 users 表 + 周期字段（cycle_start/cycle_days 为新增列）
 type User struct {
-	ID         uint   `gorm:"primaryKey"`
-	Tag        string `gorm:"uniqueIndex"`
-	CreatedAt  time.Time
-	CycleStart time.Time // 周期起始时间（锚点）；零值时回退到 CreatedAt
-	CycleDays  int       // 周期长度（天）；<=0 时使用 DefaultCycleDays
+	ID           uint64     `gorm:"primaryKey"`
+	Email        string     `gorm:"uniqueIndex;size:128"`
+	UUID         string     `gorm:"size:64"`
+	Password     string     `gorm:"size:128"`
+	Flow         string     `gorm:"size:64;default:xtls-rprx-vision"`
+	Enable       bool       `gorm:"default:true"`
+	TrafficLimit int64      `gorm:"default:0"` // 字节；0=不限额
+	ExpireAt     *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	// 周期字段（新系统新增，兼容迁移）
+	CycleStart *time.Time `gorm:"index"` // 周期锚点；NULL 时回退 CreatedAt
+	CycleDays  int        `gorm:"default:30"`
 }
 
-// CycleDuration 返回用户的周期时长
+// InboundNode 对齐现有 inbound_nodes 表
+type InboundNode struct {
+	ID                 uint64    `gorm:"primaryKey"`
+	Tag                string    `gorm:"uniqueIndex;size:128"`
+	Type               string    `gorm:"size:32"`
+	Listen             string    `gorm:"size:64;default:::"`
+	ListenPort         int64     `gorm:"not null"`
+	Enable             bool      `gorm:"default:true"`
+	ServerName         string    `gorm:"size:255"`
+	HandshakeServer    string    `gorm:"size:255"`
+	HandshakePort      int64     `gorm:"default:443"`
+	PrivateKey         string    `gorm:"size:255"`
+	ShortID            string    `gorm:"size:255"`
+	CongestionControl  string    `gorm:"size:32;default:bbr"`
+	AuthTimeout        string    `gorm:"size:32;default:3s"`
+	ZeroRttHandshake   bool      `gorm:"default:false"`
+	CertificateProvider string   `gorm:"size:128"`
+	ALPN               string    `gorm:"size:64;default:h3"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+// TrafficLog 对齐现有 traffic_logs 表（增量）
+type TrafficLog struct {
+	ID            uint64    `gorm:"primaryKey"`
+	Category      string    `gorm:"size:32;index:idx_log_cat_target_time,priority:1"`
+	TargetName    string    `gorm:"size:255;index:idx_log_cat_target_time,priority:2"`
+	UplinkDelta   int64     `gorm:"default:0"`
+	DownlinkDelta int64     `gorm:"default:0"`
+	Timestamp     time.Time `gorm:"index:idx_log_cat_target_time,priority:3"`
+}
+
+// TrafficTotal 对齐现有 traffic_totals 表（累计）
+type TrafficTotal struct {
+	ID           uint64    `gorm:"primaryKey"`
+	Category     string    `gorm:"size:32;uniqueIndex:idx_cat_target,priority:1"`
+	TargetName   string    `gorm:"size:255;uniqueIndex:idx_cat_target,priority:2"`
+	UplinkBytes  int64     `gorm:"default:0"`
+	DownlinkBytes int64    `gorm:"default:0"`
+	TotalBytes   int64     `gorm:"default:0"`
+	UpdatedAt    time.Time
+}
+
+// UserInboundBinding 对齐现有 user_inbound_bindings 表
+type UserInboundBinding struct {
+	ID         uint64 `gorm:"primaryKey"`
+	UserID     uint64 `gorm:"uniqueIndex:idx_user_inbound,priority:1"`
+	InboundID  uint64 `gorm:"uniqueIndex:idx_user_inbound,priority:2"`
+}
+
+// CycleAnchor 返回周期锚点（未设置时回退创建时间）
+func (u User) CycleAnchor() time.Time {
+	if u.CycleStart != nil && !u.CycleStart.IsZero() {
+		return *u.CycleStart
+	}
+	return u.CreatedAt
+}
+
+// CycleDuration 返回周期时长
 func (u User) CycleDuration() time.Duration {
 	days := u.CycleDays
 	if days <= 0 {
@@ -24,16 +91,7 @@ func (u User) CycleDuration() time.Duration {
 	return time.Duration(days) * 24 * time.Hour
 }
 
-// CycleAnchor 返回周期锚点
-func (u User) CycleAnchor() time.Time {
-	if u.CycleStart.IsZero() {
-		return u.CreatedAt
-	}
-	return u.CycleStart
-}
-
-// CurrentCycleWindow 返回 now 所处的当前周期窗口 [start, end)。
-// 窗口自动滚动：第 n 个周期 = [anchor+n*span, anchor+(n+1)*span)，n 由当前时间推导。
+// CurrentCycleWindow 返回 now 所处的当前周期窗口 [start, end)
 func (u User) CurrentCycleWindow(now time.Time) (time.Time, time.Time) {
 	anchor := u.CycleAnchor()
 	span := u.CycleDuration()
@@ -42,26 +100,18 @@ func (u User) CurrentCycleWindow(now time.Time) (time.Time, time.Time) {
 	}
 	n := int64(now.Sub(anchor) / span)
 	if n < 0 {
-		n = 0 // 未到周期起点时，从起点开始算
+		n = 0
 	}
 	start := anchor.Add(time.Duration(n) * span)
 	return start, start.Add(span)
 }
 
-type TrafficLog struct {
-	ID        uint `gorm:"primaryKey"`
-	UserID    uint `gorm:"index"`
-	User      User `gorm:"foreignKey:UserID"`
-	UpBytes   int64
-	DownBytes int64
-	Timestamp time.Time `gorm:"index"`
+// IsOverLimit 是否超出流量限制
+func (u User) IsOverLimit(used int64) bool {
+	return u.TrafficLimit > 0 && used > u.TrafficLimit
 }
 
-type SysStatLog struct {
-	ID         uint `gorm:"primaryKey"`
-	Goroutines uint32
-	AllocBytes uint64
-	SysBytes   uint64
-	Uptime     uint32
-	Timestamp  time.Time `gorm:"index"`
+// Expired 是否已到期
+func (u User) Expired(now time.Time) bool {
+	return u.ExpireAt != nil && now.After(*u.ExpireAt)
 }

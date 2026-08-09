@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"time"
@@ -9,30 +10,41 @@ import (
 	"sing-monitor-server/collector"
 	"sing-monitor-server/config"
 	"sing-monitor-server/db"
+	"sing-monitor-server/realtime"
 )
 
-// 由构建时注入：go build -ldflags "-X main.version=..."
 var version = "dev"
 
 func main() {
-	cfg, err := config.LoadConfig("config.json")
+	configPath := flag.String("config", "/etc/sing-monitor/config.yaml", "config file path")
+	flag.Parse()
+
+	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Fatalf("[Main] Failed to load config: %v", err)
 	}
+	log.Printf("[Main] sing-monitor %s, config: %s", version, *configPath)
 
-	log.Printf("sing-monitor-server %s", version)
+	// PostgreSQL
+	if err := db.InitDB(cfg.DSN()); err != nil {
+		log.Fatalf("[Main] PostgreSQL init failed: %v", err)
+	}
+	log.Printf("[Main] PostgreSQL connected (%s:%d/%s)", cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.DBName)
 
-	// Initialize Database
-	db.InitDB(cfg.DBPath)
+	// 实时推送器（WebSocket 数据源）
+	rt := realtime.NewBroadcaster(cfg.RealTime.IntervalMS, cfg.RealTime.OnlineThresholdSec)
+	rt.Start()
+	defer rt.Stop()
 
-	// Start Collector
-	go collector.StartCollector(cfg.SingBoxGrpcAddr, time.Duration(cfg.CollectIntervalSeconds)*time.Second, cfg.DefaultCycleDays)
+	// 采集器
+	go collector.StartCollector(cfg, rt)
 
-	// Start Gin Server
-	r := api.SetupRouter()
-	addr := fmt.Sprintf(":%d", cfg.APIServerPort)
-	log.Printf("Starting sing-monitor API server on %s\n", addr)
+	// REST API + WebSocket
+	r := api.SetupRouter(cfg, rt)
+	addr := fmt.Sprintf(":%d", cfg.Server.Port)
+	log.Printf("[Main] API server listening on %s", addr)
 	if err := r.Run(addr); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		log.Fatalf("[Main] Server failed: %v", err)
 	}
+	_ = time.Now
 }

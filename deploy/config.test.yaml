@@ -1,0 +1,29 @@
+log:
+  level: "info"
+singbox:
+  address: "127.0.0.1:8080"
+  poll_interval: "10s"
+  reset_on_query: true
+  pattern: ""
+postgres:
+  host: "127.0.0.1"
+  port: 5432
+  user: "singbox"
+  password: "passwd"
+  dbname: "singbox_test"
+  sslmode: "disable"
+control:
+  enabled: false
+  config_path: "/etc/sing-box/config.json"
+  template_path: "template.json"
+  check_command: "sing-box check -c %s"
+  reload_command: "sudo systemctl reload sing-box"
+real_time:
+  enabled: true
+  interval_ms: 1000
+  online_threshold_sec: 120
+server:
+  port: 8091
+auth:
+  password: "testpass"
+  secret: "test-secret-123"
