@@ -52,9 +52,10 @@ jobs:
         if: matrix.os == 'linux'
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          curl -sSfL https://nfpm.goreleaser.com/install.sh | sh
+          curl -sSfL -o nfpm.tar.gz "https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_Linux_x86_64.tar.gz"
+          tar -xzf nfpm.tar.gz
           sed "s/__VERSION__/${VERSION}/g; s/__ARCH__/${{ matrix.arch }}/g" nfpm.yaml > nfpm.gen.yaml
-          ./bin/nfpm package -p deb -f nfpm.gen.yaml -t "dist/sing-monitor_${VERSION}_${{ matrix.arch }}.deb"
+          ./nfpm package -p deb -f nfpm.gen.yaml -t "dist/sing-monitor_${VERSION}_${{ matrix.arch }}.deb"
           # 配置示例一并发布
           cp server/config.example.json "dist/config.example.json"
           # 二进制改回带版本名
