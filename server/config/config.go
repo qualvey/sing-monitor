@@ -71,7 +71,7 @@ func LoadConfig(path string) (*Config, error) {
 	cfg.Control.ReloadCommand = "sudo systemctl reload sing-box"
 	cfg.RealTime.Enabled = true
 	cfg.RealTime.IntervalMS = 1000
-	cfg.RealTime.OnlineThresholdSec = 120
+	cfg.RealTime.OnlineThresholdSec = 300
 	cfg.Server.Port = 8090
 	cfg.Auth.Password = "admin"
 	cfg.Auth.Secret = "change-me"

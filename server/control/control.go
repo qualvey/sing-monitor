@@ -99,7 +99,8 @@ func GenerateConfig(cfg *config.Config) error {
 	}
 	root["inbounds"] = newInbounds
 
-	// 同步 stats users 列表
+	// 同步 stats users：数据库启用用户 ∪ 现有 inbounds 用户
+	// （确保所有可连接用户都被统计，否则 sing-box 不统计名单外用户的流量）
 	enabledEmails := make([]string, 0, len(dbUsers))
 	seen := map[string]bool{}
 	for _, list := range dbUsers {
@@ -107,6 +108,22 @@ func GenerateConfig(cfg *config.Config) error {
 			if u.Enable && !seen[u.Email] {
 				seen[u.Email] = true
 				enabledEmails = append(enabledEmails, u.Email)
+			}
+		}
+	}
+	for _, item := range newInbounds {
+		ib, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if usersArr, ok := ib["users"].([]interface{}); ok {
+			for _, uu := range usersArr {
+				if m, ok := uu.(map[string]interface{}); ok {
+					if name, ok := m["name"].(string); ok && name != "" && !seen[name] {
+						seen[name] = true
+						enabledEmails = append(enabledEmails, name)
+					}
+				}
 			}
 		}
 	}
