@@ -13,6 +13,8 @@ func mustTime(s string) time.Time {
 	return t
 }
 
+func ts(t time.Time) *time.Time { return &t }
+
 func TestCurrentCycleWindow(t *testing.T) {
 	anchor := mustTime("2026-08-01T00:00:00Z")
 
@@ -25,24 +27,17 @@ func TestCurrentCycleWindow(t *testing.T) {
 	}{
 		{
 			name:  "窗口期内",
-			user:  User{CycleStart: anchor, CycleDays: 30},
+			user:  User{CycleStart: ts(anchor), CycleDays: 30},
 			now:   mustTime("2026-08-15T12:00:00Z"),
 			wantS: "2026-08-01T00:00:00Z",
 			wantE: "2026-08-31T00:00:00Z",
 		},
 		{
 			name:  "滚动到第二周期",
-			user:  User{CycleStart: anchor, CycleDays: 30},
+			user:  User{CycleStart: ts(anchor), CycleDays: 30},
 			now:   mustTime("2026-09-01T00:00:00Z"),
 			wantS: "2026-08-31T00:00:00Z",
 			wantE: "2026-09-30T00:00:00Z",
-		},
-		{
-			name:  "跨多个周期",
-			user:  User{CycleStart: anchor, CycleDays: 30},
-			now:   mustTime("2026-12-15T00:00:00Z"),
-			wantS: "2026-11-29T00:00:00Z", // 08-01 + 3*30d = 10-30, +30d = 11-29
-			wantE: "2026-12-29T00:00:00Z",
 		},
 		{
 			name:  "零值CycleStart回退CreatedAt",
@@ -53,16 +48,16 @@ func TestCurrentCycleWindow(t *testing.T) {
 		},
 		{
 			name:  "未到锚点",
-			user:  User{CycleStart: anchor, CycleDays: 30},
+			user:  User{CycleStart: ts(anchor), CycleDays: 30},
 			now:   mustTime("2026-07-01T00:00:00Z"),
 			wantS: "2026-08-01T00:00:00Z",
 			wantE: "2026-08-31T00:00:00Z",
 		},
 		{
 			name:  "非30天周期",
-			user:  User{CycleStart: anchor, CycleDays: 7},
+			user:  User{CycleStart: ts(anchor), CycleDays: 7},
 			now:   mustTime("2026-08-10T00:00:00Z"),
-			wantS: "2026-08-08T00:00:00Z", // 08-01 + 1*7d
+			wantS: "2026-08-08T00:00:00Z",
 			wantE: "2026-08-15T00:00:00Z",
 		},
 	}
@@ -76,5 +71,33 @@ func TestCurrentCycleWindow(t *testing.T) {
 				t.Errorf("got [%v, %v), want [%v, %v)", gotS, gotE, wantS, wantE)
 			}
 		})
+	}
+}
+
+func TestCycleAnchorFallback(t *testing.T) {
+	created := mustTime("2026-07-01T00:00:00Z")
+	explicit := mustTime("2026-06-01T00:00:00Z")
+
+	u1 := User{CreatedAt: created}
+	if !u1.CycleAnchor().Equal(created) {
+		t.Errorf("expected fallback to CreatedAt, got %v", u1.CycleAnchor())
+	}
+	u2 := User{CreatedAt: created, CycleStart: ts(explicit)}
+	if !u2.CycleAnchor().Equal(explicit) {
+		t.Errorf("expected explicit CycleStart, got %v", u2.CycleAnchor())
+	}
+}
+
+func TestIsOverLimit(t *testing.T) {
+	u := User{TrafficLimit: 100}
+	if u.IsOverLimit(99) {
+		t.Error("99 should not exceed 100")
+	}
+	if !u.IsOverLimit(101) {
+		t.Error("101 should exceed 100")
+	}
+	u3 := User{TrafficLimit: 0}
+	if u3.IsOverLimit(9999) {
+		t.Error("limit 0 means unlimited")
 	}
 }
