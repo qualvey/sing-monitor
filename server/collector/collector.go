@@ -12,7 +12,7 @@ import (
 	"sing-monitor-server/models"
 	"sing-monitor-server/realtime"
 
-	"github.com/sagernet/sing-box/experimental/v2rayapi"
+	"github.com/v2fly/v2ray-core/v5/app/stats/command"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gorm.io/gorm"
@@ -26,7 +26,7 @@ func StartCollector(cfg *config.Config, rt *realtime.Broadcaster) {
 		log.Printf("[Collector] dial sing-box gRPC failed: %v", err)
 		return
 	}
-	client := v2rayapi.NewStatsServiceClient(conn)
+	client := command.NewStatsServiceClient(conn)
 
 	log.Printf("[Collector] Connected to sing-box gRPC at %s", cfg.Singbox.Address)
 
@@ -40,7 +40,7 @@ func StartCollector(cfg *config.Config, rt *realtime.Broadcaster) {
 	}
 }
 
-func collect(client v2rayapi.StatsServiceClient, cfg *config.Config, rt *realtime.Broadcaster) {
+func collect(client command.StatsServiceClient, cfg *config.Config, rt *realtime.Broadcaster) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -54,7 +54,7 @@ func collect(client v2rayapi.StatsServiceClient, cfg *config.Config, rt *realtim
 		if cfg.Singbox.Pattern != "" {
 			queryPattern = cfg.Singbox.Pattern + queryPattern
 		}
-		resp, err := client.QueryStats(ctx, &v2rayapi.QueryStatsRequest{
+		resp, err := client.QueryStats(ctx, &command.QueryStatsRequest{
 			Pattern: queryPattern,
 			Reset_:  cfg.Singbox.ResetOnQuery,
 		})
