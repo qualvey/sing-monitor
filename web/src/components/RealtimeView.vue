@@ -95,7 +95,8 @@ function connect() {
 }
 
 function pushChart(up, down) {
-  const t = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+  // x 轴必须用时间戳（epoch ms），time 轴才能正确渲染
+  const t = Date.now()
   upSeries.push([t, up])
   downSeries.push([t, down])
   if (upSeries.length > 60) { upSeries.shift(); downSeries.shift() }
@@ -109,18 +110,36 @@ function pushChart(up, down) {
   }
 }
 
+// 速率友好格式化（bytes/s → KB/MB/GB per s）
+function fmtRate(v) {
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + ' GB/s'
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + ' MB/s'
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + ' KB/s'
+  return v + ' B/s'
+}
+
 onMounted(async () => {
   await nextTick()
   chart = echarts.init(chartEl.value)
   chart.setOption({
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      valueFormatter: fmtRate,
+    },
     legend: { data: ['上行', '下行'], textStyle: { color: '#94a3b8' } },
-    grid: { left: 50, right: 20, top: 30, bottom: 30 },
+    grid: { left: 70, right: 20, top: 30, bottom: 30 },
     xAxis: { type: 'time', axisLabel: { color: '#64748b' } },
-    yAxis: { type: 'value', axisLabel: { color: '#64748b' } },
+    yAxis: {
+      type: 'value',
+      // 不从 0 开始，放大小流量波动；轴标签格式化单位
+      scale: true,
+      axisLabel: { color: '#64748b', formatter: fmtRate },
+    },
+    // 滚轮/拖拽缩放
+    dataZoom: [{ type: 'inside' }, { type: 'slider', height: 14, bottom: 5 }],
     series: [
-      { name: '上行', type: 'line', smooth: true, showSymbol: false, data: [], lineStyle: { color: '#818cf8' }, itemStyle: { color: '#818cf8' } },
-      { name: '下行', type: 'line', smooth: true, showSymbol: false, data: [], lineStyle: { color: '#22d3ee' }, itemStyle: { color: '#22d3ee' } },
+      { name: '上行', type: 'line', smooth: true, showSymbol: false, data: [], lineStyle: { color: '#818cf8' }, itemStyle: { color: '#818cf8' }, areaStyle: { opacity: 0.08 } },
+      { name: '下行', type: 'line', smooth: true, showSymbol: false, data: [], lineStyle: { color: '#22d3ee' }, itemStyle: { color: '#22d3ee' }, areaStyle: { opacity: 0.08 } },
     ],
   })
   connect()
