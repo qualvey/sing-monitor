@@ -30,14 +30,14 @@
       <table class="w-full text-left text-xs">
         <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-800">
           <tr>
-            <th class="py-3.5 px-4">用户</th>
-            <th class="py-3.5 px-4">上行速率</th>
-            <th class="py-3.5 px-4">下行速率</th>
-            <th class="py-3.5 px-4">状态</th>
+            <SortableTh label="用户" :active="sortKey === 'name'" :dir="sortDir" @sort="toggleSort('name')" />
+            <SortableTh label="上行速率" :active="sortKey === 'uplink'" :dir="sortDir" @sort="toggleSort('uplink')" />
+            <SortableTh label="下行速率" :active="sortKey === 'downlink'" :dir="sortDir" @sort="toggleSort('downlink')" />
+            <SortableTh label="状态" :active="sortKey === 'online'" :dir="sortDir" @sort="toggleSort('online')" />
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800/60">
-          <tr v-for="u in users" :key="u.name" class="hover:bg-slate-800/40">
+          <tr v-for="u in sortedUsers" :key="u.name" class="hover:bg-slate-800/40">
             <td class="py-3 px-4 font-semibold">{{ u.name }}</td>
             <td class="py-3 px-4 font-mono text-indigo-400">{{ fmtBytes(u.uplink) }}/s</td>
             <td class="py-3 px-4 font-mono text-cyan-400">{{ fmtBytes(u.downlink) }}/s</td>
@@ -56,15 +56,42 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { getToken, fmtBytes } from '../api'
+import SortableTh from './SortableTh.vue'
 
 const chartEl = ref(null)
 const connected = ref(false)
 const globalUp = ref(0)
 const globalDown = ref(0)
 const users = ref([])
+
+// 表头排序（默认速率降序）
+const sortKey = ref('downlink')
+const sortDir = ref('desc')
+
+function toggleSort(k) {
+  if (sortKey.value === k) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = k
+    sortDir.value = 'asc'
+  }
+}
+
+const sortedUsers = computed(() => {
+  const arr = [...users.value]
+  const k = sortKey.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  arr.sort((a, b) => {
+    const va = a[k]
+    const vb = b[k]
+    if (typeof va === 'string' && typeof vb === 'string') return va.localeCompare(vb, 'zh') * dir
+    return (va - vb) * dir
+  })
+  return arr
+})
 
 let ws = null
 let chart = null

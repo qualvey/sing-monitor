@@ -14,16 +14,16 @@
       <table class="w-full text-left text-xs">
         <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-800">
           <tr>
-            <th class="py-3.5 px-4">用户</th>
-            <th class="py-3.5 px-4">周期流量 / 周期窗口</th>
-            <th class="py-3.5 px-4">已用 / 限额</th>
-            <th class="py-3.5 px-4">到期时间</th>
-            <th class="py-3.5 px-4">状态</th>
+            <SortableTh label="用户" :active="sortKey === 'email'" :dir="sortDir" @sort="toggleSort('email')" />
+            <SortableTh label="周期流量 / 周期窗口" :active="sortKey === 'period_total_bytes'" :dir="sortDir" @sort="toggleSort('period_total_bytes')" />
+            <SortableTh label="已用 / 限额" :active="sortKey === 'used_traffic'" :dir="sortDir" @sort="toggleSort('used_traffic')" />
+            <SortableTh label="到期时间" :active="sortKey === 'expire_at'" :dir="sortDir" @sort="toggleSort('expire_at')" />
+            <SortableTh label="状态" :active="sortKey === 'status'" :dir="sortDir" @sort="toggleSort('status')" />
             <th class="py-3.5 px-4 text-right">操作</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800/60">
-          <tr v-for="u in filtered" :key="u.id" class="hover:bg-slate-800/40 transition-colors">
+          <tr v-for="u in sortedUsers" :key="u.id" class="hover:bg-slate-800/40 transition-colors">
             <td class="py-3.5 px-4">
               <div class="font-bold text-sm">{{ u.email }}</div>
               <div class="text-[11px] text-slate-500 font-mono">UUID: {{ u.uuid ? u.uuid.slice(0, 8) + '...' : '无' }}</div>
@@ -165,6 +165,7 @@
 <script setup>
 import { ref, computed, reactive } from 'vue'
 import { api, fmtBytes, fmtTime } from '../api'
+import SortableTh from './SortableTh.vue'
 
 const props = defineProps({
   users: { type: Array, default: () => [] },
@@ -178,6 +179,43 @@ const filtered = computed(() => {
   if (!q) return props.users
   return props.users.filter(u =>
     (u.email && u.email.toLowerCase().includes(q)) || (u.uuid && u.uuid.toLowerCase().includes(q)))
+})
+
+// 表头排序
+const sortKey = ref('period_total_bytes')
+const sortDir = ref('desc')
+
+function toggleSort(k) {
+  if (sortKey.value === k) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = k
+    sortDir.value = 'asc'
+  }
+}
+
+function sortValue(u, k) {
+  if (k === 'expire_at') return u.expire_at ? new Date(u.expire_at).getTime() : 0
+  if (k === 'status') {
+    // 启用且未超额 > 启用已超额 > 禁用
+    if (u.enable && !u.is_over_limit) return 2
+    if (u.enable) return 1
+    return 0
+  }
+  return u[k]
+}
+
+const sortedUsers = computed(() => {
+  const arr = [...filtered.value]
+  const k = sortKey.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  arr.sort((a, b) => {
+    const va = sortValue(a, k)
+    const vb = sortValue(b, k)
+    if (typeof va === 'string' && typeof vb === 'string') return va.localeCompare(vb, 'zh') * dir
+    return (va - vb) * dir
+  })
+  return arr
 })
 
 const modalOpen = ref(false)
