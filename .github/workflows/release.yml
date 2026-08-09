@@ -34,6 +34,23 @@ jobs:
         with:
           go-version-file: server/go.mod
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build frontend
+        run: |
+          cd web
+          npm ci
+          npm run build
+          # 嵌入产物复制到 go:embed 目录
+          mkdir -p ../server/api/web
+          cp -r dist/* ../server/api/web/
+          cd ..
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.os }}
