@@ -8,6 +8,10 @@
       <button @click="openCreate()" class="inline-flex px-4 py-2 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 rounded-xl">
         + 添加新入站节点
       </button>
+      <button @click="emit('refresh')" title="刷新数据"
+        class="inline-flex px-3 py-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-xl transition-all">
+        🔄 刷新
+      </button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -174,7 +178,7 @@ import { api } from '../api'
 const props = defineProps({
   inbounds: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['changed'])
+const emit = defineEmits(['changed', 'refresh'])
 
 const modalOpen = ref(false)
 const editing = ref(false)

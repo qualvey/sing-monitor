@@ -8,6 +8,10 @@
       <button @click="openCreate()" class="inline-flex px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 rounded-xl">
         + 添加新代理用户
       </button>
+      <button @click="emit('refresh')" title="刷新数据"
+        class="inline-flex px-3 py-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-xl transition-all">
+        🔄 刷新
+      </button>
     </div>
 
     <div class="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
@@ -171,7 +175,7 @@ const props = defineProps({
   users: { type: Array, default: () => [] },
   inbounds: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['changed'])
+const emit = defineEmits(['changed', 'refresh'])
 
 const kw = ref('')
 const filtered = computed(() => {

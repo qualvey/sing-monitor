@@ -55,9 +55,9 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <Overview v-if="tab === 'overview'" :users="users" :inbounds="inbounds" :stats="stats" @switch-tab="tab = $event" />
-      <UsersView v-else-if="tab === 'users'" :users="users" :inbounds="inbounds" @changed="refresh" />
-      <NodesView v-else-if="tab === 'nodes'" :inbounds="inbounds" @changed="refresh" />
+      <Overview v-if="tab === 'overview'" :users="users" :inbounds="inbounds" :stats="stats" @switch-tab="tab = $event" @refresh="refresh" />
+      <UsersView v-else-if="tab === 'users'" :users="users" :inbounds="inbounds" @changed="refresh" @refresh="refresh" />
+      <NodesView v-else-if="tab === 'nodes'" :inbounds="inbounds" @changed="refresh" @refresh="refresh" />
       <StatsView v-else-if="tab === 'stats'" :stats="stats" @refresh="refresh" />
       <RealtimeView v-else-if="tab === 'realtime'" />
     </main>

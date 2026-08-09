@@ -98,7 +98,7 @@ sing-monitor/
 | v0.2.1 | 修复采集器 gRPC 服务名（见坑 1） |
 | v0.2.2 | 修复 CI 测试（旧测试文件残留） |
 | v0.2.3 | 修复 go:embed 子目录 + 新增版本接口 |
-| v0.2.4 | vite base 顶层 + 模型 json tag + 在线判定 + 实时排序 + 图表修复 + 表格排序 + 动态采集灵敏度（**待发布**） |
+| v0.2.4 | vite base 顶层 + 模型 json tag + 在线判定 + 实时排序 + 图表修复 + 表格排序 + 动态采集灵敏度 + 单用户图表 + 主题双模式 + 页面刷新按钮（**待发布**） |
 
 ---
 
@@ -147,6 +147,10 @@ sing-monitor/
 - **速率图看不到波动**：①x 轴 `type:'time'` 但数据塞的是 `toLocaleTimeString` 字符串（ECharts time 轴要 epoch ms 时间戳）→ 改用 `Date.now()`；②y 轴大值压平小波动 → `scale:true` + 轴标签/悬浮框单位格式化（B/s→MB/s）+ dataZoom 缩放。
 - **表格排序需求**：用户管理/历史统计/实时监控三张表都支持表头点击排序（可复用组件 `web/src/components/SortableTh.vue`，中文 `localeCompare('zh')`）。
 - **动态采集灵敏度（实时监控）**：WS 订阅数 > 0 时采集器自动切高频（前端可选 1s/2s/5s/10s，通过 WS 控制消息 `{"action":"set_interval","interval_ms":N}` 调整）；断开/页面关闭自动恢复默认 10s。实现：collector ticker 运行时 `Reset` + realtime 订阅计数 + `pollMs` 原子变量。**注意：高频模式写库频率提升（数据量约 5 倍），仅实时页打开时生效**。
+- **离线用户速率残留 BUG**：publish 时离线用户（超阈值无流量）旧速率仍显示并计入总速率 → 离线用户速率强制归零、不参与 global 汇总。
+- **实时图表单用户模式**：图表数据源可选「全部用户合计 / 单用户」，下拉或点击表格行切换（图表系列按 `chartTarget` 取数）。
+- **主题双模式**：Tailwind `darkMode:'class'`，全部组件浅色默认 + `dark:` 深色；header 切换按钮（☀️/🌙）+ localStorage 记忆 + `<head>` 内联脚本防闪烁；默认夜间。
+- **页面刷新按钮**：概览大盘/用户管理/入站节点加「🔄 刷新」（emit refresh → App 重新拉数据）；历史统计已有；实时监控页加「🔄 重连」（重连 WS + 清空图表）。
 
 ### 坑 9：PowerShell/脚本环境
 - 本机 PowerShell 不支持 `&&`；curl 是 Invoke-WebRequest 别名（用 `curl.exe`）

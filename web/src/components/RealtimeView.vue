@@ -16,13 +16,19 @@
       <div class="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
         <div class="flex items-center justify-between">
           <div class="text-xs text-slate-600 dark:text-slate-400 uppercase">采集灵敏度</div>
-          <select v-model="intervalMs" @change="sendInterval"
+          <div class="flex items-center space-x-2">
+            <button @click="reconnect" title="重连实时数据"
+              class="px-2 py-1 text-xs text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-lg transition-all">
+              🔄 重连
+            </button>
+            <select v-model="intervalMs" @change="sendInterval"
             class="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500">
             <option :value="1000">1 秒（最快）</option>
             <option :value="2000">2 秒</option>
             <option :value="5000">5 秒</option>
             <option :value="10000">10 秒</option>
           </select>
+          </div>
         </div>
         <div class="text-[11px] text-slate-500">实时监控页打开时自动切高频采集，关闭页面自动恢复默认</div>
         <div>
@@ -105,6 +111,12 @@ function sendInterval() {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ action: 'set_interval', interval_ms: intervalMs.value }))
   }
+}
+
+function reconnect() {
+  if (ws) { ws.close() }
+  chartSeries.length = 0
+  connect()
 }
 
 // 表头排序（默认速率降序）

@@ -68,7 +68,13 @@
       <div class="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-base font-bold">🖧 入站节点状态</h3>
-          <button @click="$emit('switch-tab', 'nodes')" class="text-xs text-cyan-400 hover:text-cyan-300">管理节点 →</button>
+          <div class="flex items-center space-x-2">
+            <button @click="$emit('refresh')" title="刷新数据"
+              class="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-lg transition-all">
+              🔄 刷新
+            </button>
+            <button @click="$emit('switch-tab', 'nodes')" class="text-xs text-cyan-400 hover:text-cyan-300">管理节点 →</button>
+          </div>
         </div>
         <div class="space-y-3">
           <div v-for="n in inbounds" :key="n.id"
@@ -98,7 +104,7 @@ const props = defineProps({
   inbounds: { type: Array, default: () => [] },
   stats: { type: Array, default: () => [] },
 })
-defineEmits(['switch-tab'])
+defineEmits(['switch-tab', 'refresh'])
 
 const defaultCycleDays = 30
 
