@@ -81,7 +81,11 @@ func (b *Broadcaster) Stop() {
 }
 
 // Submit 采集器每轮调用：name=target(tag)，up/down=自上次以来的增量
+// 仅在有真实流量时刷新活跃时间戳（在线判定依据）
 func (b *Broadcaster) Submit(name string, up, down int64) {
+	if up == 0 && down == 0 {
+		return
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	now := time.Now()
