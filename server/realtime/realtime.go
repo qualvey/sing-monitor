@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"sort"
 	"sync"
 	"time"
 )
@@ -120,6 +121,15 @@ func (b *Broadcaster) publish() {
 		snap.Global.Uplink += st.rateUp
 		snap.Global.Downlink += st.rateDown
 	}
+	// 稳定排序：按总速率降序（活跃在前），同速率按名称升序，避免每次推送顺序跳动
+	sort.SliceStable(snap.Users, func(i, j int) bool {
+		ri := snap.Users[i].Uplink + snap.Users[i].Downlink
+		rj := snap.Users[j].Uplink + snap.Users[j].Downlink
+		if ri != rj {
+			return ri > rj
+		}
+		return snap.Users[i].Name < snap.Users[j].Name
+	})
 	subs := make([]chan Snapshot, 0, len(b.subs))
 	for ch := range b.subs {
 		subs = append(subs, ch)
