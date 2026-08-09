@@ -1,0 +1,19 @@
+[Unit]
+Description=sing-monitor server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/sing-monitor
+ExecStart=/opt/sing-monitor/sing-monitor-server
+Restart=on-failure
+RestartSec=5
+# 安全加固
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sing-monitor
+
+[Install]
+WantedBy=multi-user.target
