@@ -30,6 +30,8 @@ var app *Ctx
 func SetupRouter(cfg *config.Config, rt *realtime.Broadcaster) *gin.Engine {
 	app = &Ctx{Cfg: cfg, RT: rt}
 
+	// 关闭 gin 自身的 debug 路由日志，避免与 log.level 无关的 [GIN-debug] 刷屏
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
 	// CORS
