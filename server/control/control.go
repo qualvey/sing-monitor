@@ -3,7 +3,6 @@ package control
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 
 	"sing-monitor-server/config"
 	"sing-monitor-server/db"
+	"sing-monitor-server/logger"
 	"sing-monitor-server/models"
 
 	"gorm.io/gorm"
@@ -164,13 +164,13 @@ func GenerateConfig(cfg *config.Config) error {
 		return fmt.Errorf("apply config: %w", err)
 	}
 
-	log.Printf("[Control] config regenerated: %d inbounds managed, %d stats users", managed, len(enabledEmails))
+	logger.Info("[Control] config regenerated: %d inbounds managed, %d stats users", managed, len(enabledEmails))
 
 	if cfg.Control.ReloadCommand != "" {
 		if err := runCommand(cfg.Control.ReloadCommand); err != nil {
 			return fmt.Errorf("reload sing-box: %w", err)
 		}
-		log.Printf("[Control] sing-box reloaded")
+		logger.Info("[Control] sing-box reloaded")
 	}
 	return nil
 }
@@ -208,7 +208,7 @@ func ImportConfig(cfg *config.Config) error {
 			ListenPort: int64Val(ib["listen_port"]),
 			Enable:     true,
 		}).Error; err != nil {
-			log.Printf("[Importer] node %s: %v", tag, err)
+			logger.Error("[Importer] node %s: %v", tag, err)
 			continue
 		}
 		// 节点级字段同步
@@ -236,7 +236,7 @@ func ImportConfig(cfg *config.Config) error {
 			"alpn":                 strVal(ib["alpn"], node.ALPN),
 		}
 		if err := db.DB.Model(&models.InboundNode{}).Where("id = ?", node.ID).Updates(updates).Error; err != nil {
-			log.Printf("[Importer] node %s update: %v", tag, err)
+			logger.Error("[Importer] node %s update: %v", tag, err)
 			continue
 		}
 
@@ -259,7 +259,7 @@ func ImportConfig(cfg *config.Config) error {
 				Flow:     strVal(u["flow"], "xtls-rprx-vision"),
 				Enable:   true,
 			}).Error; err != nil {
-				log.Printf("[Importer] user %s: %v", email, err)
+				logger.Error("[Importer] user %s: %v", email, err)
 				continue
 			}
 			// 绑定（幂等）
@@ -272,7 +272,7 @@ func ImportConfig(cfg *config.Config) error {
 			imported++
 		}
 	}
-	log.Printf("[Importer] imported %d node/user bindings from %s", imported, cfg.Control.ConfigPath)
+	logger.Info("[Importer] imported %d node/user bindings from %s", imported, cfg.Control.ConfigPath)
 	return nil
 }
 
@@ -313,7 +313,7 @@ func backupConfig(path string) error {
 	if err := os.WriteFile(dst, src, 0o644); err != nil {
 		return err
 	}
-	log.Printf("[Control] config backed up to %s", dst)
+	logger.Info("[Control] config backed up to %s", dst)
 	return nil
 }
 
@@ -326,14 +326,14 @@ func checkConfig(cfg *config.Config, path string) error {
 }
 
 func runCommand(cmdStr string) error {
-	log.Printf("[Control] exec: %s", cmdStr)
+	logger.Info("[Control] exec: %s", cmdStr)
 	cmd := exec.Command("sh", "-c", cmdStr)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s: %v (%s)", cmdStr, err, strings.TrimSpace(string(out)))
 	}
 	if len(out) > 0 {
-		log.Printf("[Control] %s", strings.TrimSpace(string(out)))
+		logger.Info("[Control] %s", strings.TrimSpace(string(out)))
 	}
 	return nil
 }

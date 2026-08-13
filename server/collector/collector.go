@@ -3,12 +3,12 @@ package collector
 import (
 	"context"
 	"errors"
-	"log"
 	"strings"
 	"time"
 
 	"sing-monitor-server/config"
 	"sing-monitor-server/db"
+	"sing-monitor-server/logger"
 	"sing-monitor-server/models"
 	"sing-monitor-server/realtime"
 
@@ -21,14 +21,14 @@ import (
 // StartCollector 启动采集循环：拉 sing-box gRPC 统计 → 增量入库 + 累计 upsert + 实时推送
 func StartCollector(cfg *config.Config, rt *realtime.Broadcaster) {
 	interval := cfg.PollIntervalDuration()
-	conn, err := grpc.Dial(cfg.Singbox.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(cfg.Singbox.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Printf("[Collector] dial sing-box gRPC failed: %v", err)
+		logger.Error("[Collector] dial sing-box gRPC failed: %v", err)
 		return
 	}
 	client := command.NewStatsServiceClient(conn)
 
-	log.Printf("[Collector] Connected to sing-box gRPC at %s", cfg.Singbox.Address)
+	logger.Info("[Collector] Connected to sing-box gRPC at %s", cfg.Singbox.Address)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -44,7 +44,7 @@ func StartCollector(cfg *config.Config, rt *realtime.Broadcaster) {
 			if target != interval {
 				ticker.Reset(target)
 				interval = target
-				log.Printf("[Collector] poll interval -> %s", interval)
+				logger.Info("[Collector] poll interval -> %s", interval)
 			}
 		}
 	}
@@ -69,7 +69,7 @@ func collect(client command.StatsServiceClient, cfg *config.Config, rt *realtime
 			Reset_:  cfg.Singbox.ResetOnQuery,
 		})
 		if err != nil {
-			log.Printf("[Collector] QueryStats(%s) error: %v", c.category, err)
+			logger.Error("[Collector] QueryStats(%s) error: %v", c.category, err)
 			continue
 		}
 		now := time.Now()
@@ -98,13 +98,13 @@ func collect(client command.StatsServiceClient, cfg *config.Config, rt *realtime
 
 		for tag, v := range perTarget {
 			if err := record(now, c.category, tag, v[0], v[1]); err != nil {
-				log.Printf("[Collector] record %s/%s failed: %v", c.category, tag, err)
+				logger.Error("[Collector] record %s/%s failed: %v", c.category, tag, err)
 				continue
 			}
 			rt.Submit(tag, v[0], v[1])
 		}
 		if len(perTarget) > 0 {
-			log.Printf("[Collector] %s: recorded %d targets", c.category, len(perTarget))
+			logger.Debug("[Collector] %s: recorded %d targets", c.category, len(perTarget))
 		}
 	}
 }

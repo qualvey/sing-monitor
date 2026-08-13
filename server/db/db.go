@@ -1,14 +1,14 @@
 package db
 
 import (
-	"log"
 	"time"
 
+	"sing-monitor-server/logger"
 	"sing-monitor-server/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
@@ -18,7 +18,7 @@ var DB *gorm.DB
 func InitDB(dsn string) error {
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger: gormlogger.Default.LogMode(gormlogger.Warn),
 	})
 	if err != nil {
 		return err
@@ -62,6 +62,6 @@ func backfillCycles() error {
 		Update("cycle_days", models.DefaultCycleDays).Error; err != nil {
 		return err
 	}
-	log.Printf("[DB] cycle fields backfilled")
+	logger.Info("[DB] cycle fields backfilled")
 	return nil
 }

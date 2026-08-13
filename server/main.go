@@ -3,19 +3,21 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"time"
 
 	"sing-monitor-server/api"
 	"sing-monitor-server/collector"
 	"sing-monitor-server/config"
 	"sing-monitor-server/db"
+	"sing-monitor-server/logger"
 	"sing-monitor-server/realtime"
 )
 
 var version = "dev"
 
 func main() {
+	logger.Init("info")
+
 	configPath := flag.String("config", "/etc/sing-monitor/config.yaml", "config file path")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -29,15 +31,16 @@ func main() {
 
 	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
-		log.Fatalf("[Main] Failed to load config: %v", err)
+		logger.Fatalf("[Main] Failed to load config: %v", err)
 	}
-	log.Printf("[Main] sing-monitor %s, config: %s", version, *configPath)
+	logger.Init(cfg.Log.Level)
+	logger.Info("[Main] sing-monitor %s, config: %s", version, *configPath)
 
 	// PostgreSQL
 	if err := db.InitDB(cfg.DSN()); err != nil {
-		log.Fatalf("[Main] PostgreSQL init failed: %v", err)
+		logger.Fatalf("[Main] PostgreSQL init failed: %v", err)
 	}
-	log.Printf("[Main] PostgreSQL connected (%s:%d/%s)", cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.DBName)
+	logger.Info("[Main] PostgreSQL connected (%s:%d/%s)", cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.DBName)
 
 	// 实时推送器（WebSocket 数据源）
 	rt := realtime.NewBroadcaster(cfg.RealTime.IntervalMS, cfg.RealTime.OnlineThresholdSec)
@@ -50,9 +53,9 @@ func main() {
 	// REST API + WebSocket
 	r := api.SetupRouter(cfg, rt)
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
-	log.Printf("[Main] API server listening on %s", addr)
+	logger.Info("[Main] API server listening on %s", addr)
 	if err := r.Run(addr); err != nil {
-		log.Fatalf("[Main] Server failed: %v", err)
+		logger.Fatalf("[Main] Server failed: %v", err)
 	}
 	_ = time.Now
 }
